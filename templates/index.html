@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Scraper</title>
+    <link rel="stylesheet" href="templates/main.css"/>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #property-table th, #property-table td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Scraper de Propiedades</h1>
+        <form id="scrape-form">
+            <div class="form-group row">
+                <label for="property-type" class="col-sm-2 col-form-label">Property Type:</label>
+                <div class="col-sm-10">
+                    <select id="property-type" name="property_type" class="form-control">
+                        <option value="departamentos">Departamentos</option>
+                        <option value="casas">Casas</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group row">
+                <label for="operation-type" class="col-sm-2 col-form-label">Operation Type:</label>
+                <div class="col-sm-10">
+                    <select id="operation-type" name="operation_type" class="form-control">
+                        <option value="venta">Venta</option>
+                        <option value="alquiler">Alquiler</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group row">
+                <label for="location" class="col-sm-2 col-form-label">Barrio o Localidad:</label>
+                <div class="col-sm-10">
+                    <input type="text" id="location" name="location" class="form-control">
+                </div>
+            </div>
+            <div class="form-group row">
+                <label for="max-pages" class="col-sm-2 col-form-label">Max Pages:</label>
+                <div class="col-sm-10">
+                    <input type="number" id="max-pages" name="max_pages" value="1" class="form-control">
+                </div>
+            </div>
+            <div class="form-group row">
+                <label for="sort-by" class="col-sm-2 col-form-label">Sort By:</label>
+                <div class="col-sm-10">
+                    <select id="sort-by" name="sort_by" class="form-control">
+                        <option value="masnuevos">Más Nuevos</option>
+                        <option value="menorprecio">Menor Precio</option>
+                        <option value="mayorprecio">Mayor Precio</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group row">
+                <div class="col-sm-10 offset-sm-2">
+                    <input type="submit" value="Scrape" class="btn btn-primary">
+                </div>
+            </div>
+        </form>
+
+        <div id="table-container" class="mt-4">
+            <table id="property-table" class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Dirección</th>
+                        <th>Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Table body will be dynamically populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('#scrape-form').submit(function (event) {
+                event.preventDefault();
+                var formData = $(this).serialize();
+                $.getJSON('/scrape?' + formData, function (data) {
+                    var tableHtml = '';
+                    $.each(data, function (index, item) {
+                        tableHtml += '<tr><td>' + item.Nombre + '</td><td>' + item.Precio + '</td><td>' + item.Dirección + '</td><td><a href="' + item.Link + '">Link</a></td></tr>';
+                    });
+                    $('#property-table tbody').html(tableHtml);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

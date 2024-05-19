@@ -1,0 +1,9 @@
+html {
+    background-color: rgba(0, 0, 255, 0.3);
+}
+
+#property-table th, #property-table td {
+    border: 1px solid black;
+    padding: 8px;
+    text-align: center;
+}
