@@ -5,12 +5,12 @@ import pandas as pd
 
 app = Flask(__name__)
 
-def scrape_props(property_type, operation_type, location, max_pages, sort_by):
+def scrape_props(property_type, operation_type, location, price_range_from, price_range_to, currency, max_pages, sort_by):
     current_page = 1
     data = []
 
     while current_page <= max_pages:
-        url = f'https://www.argenprop.com/{property_type}/{operation_type}/{location}?orden-{sort_by}&pagina-{str(current_page)}'
+        url = f'https://www.argenprop.com/{property_type}/{operation_type}/{location}?{price_range_from}-{price_range_to}-{currency}&orden-{sort_by}&pagina-{str(current_page)}'
         response = requests.get(url, timeout=10).text
         doc = BeautifulSoup(response, 'html.parser')
         
@@ -51,13 +51,16 @@ def scrape():
     property_type = request.args.get('property_type', type=str)
     operation_type = request.args.get('operation_type', type=str)
     location = request.args.get('location', type=str)
+    price_range_from = request.args.get('price_range_from', type=int)
+    price_range_to = request.args.get('price_range_to', type=int)
+    currency = request.args.get('currency', type=str)
     max_pages = request.args.get('max_pages', type=int)
     sort_by = request.args.get('sort_by', type=str)
 
-    if property_type not in ['departamentos', 'casas'] or operation_type not in ['venta', 'alquiler'] or sort_by not in ['masnuevos', 'menorprecio', 'mayorprecio']:
+    if property_type not in ['departamentos', 'casas'] or operation_type not in ['venta', 'alquiler'] or sort_by not in ['masnuevos', 'menorprecio', 'mayorprecio'] or currency not in ['dolares', 'pesos']:
         return jsonify({"error": "Invalid input."}), 400
 
-    data = scrape_props(property_type, operation_type, location, max_pages, sort_by)
+    data = scrape_props(property_type, operation_type, location, price_range_from, price_range_to, currency, max_pages, sort_by)
 
     return jsonify(data)
 
