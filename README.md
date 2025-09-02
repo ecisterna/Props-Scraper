@@ -1,22 +1,49 @@
-# # Props Scraper - Scraping Automático de Propiedades
+# Props Scraper - Scraping Automático de Propiedades
 
-Este proyecto permite hacer scraping de propiedades de ArgentProp y programar ejecuciones automáticas diarias que guardan los resultados en archivos Excel.
+Este proyecto permite hacer scraping de propiedades de ArgentProp y programar ejecuciones automáticas diarias que guardan los resultados en **Google Sheets** (Excel de Google Drive) y archivos Excel locales.
+
+## 🌟 Características Principales
+
+- 🤖 **Scraping automático diario**
+- ☁️ **Guarda en Google Sheets** (accesible desde cualquier lugar)
+- 💾 **Respaldo local en Excel**
+- 📱 **Acceso desde móvil** via Google Sheets
+- 🔄 **Actualización automática**
+- 📊 **Reportes y estadísticas**
+- ⚙️ **Configuración flexible**
 
 ## 📁 Estructura del Proyecto
 
 ```
 Props-Scraper/
-├── application.py              # Aplicación Flask original
-├── application_scheduler.py    # Aplicación Flask con scheduler integrado
-├── daily_scraper.py           # Script independiente para scraping diario
-├── config_scraper.py          # Configurador de parámetros
-├── setup_task.bat            # Script para configurar tarea de Windows
-├── requirements.txt           # Dependencias del proyecto
-├── templates/                 # Plantillas HTML
-├── resultados/               # Carpeta donde se guardan los Excel
-├── logs/                     # Carpeta de logs
-└── README.md                 # Este archivo
+├── application.py                    # Aplicación Flask original
+├── application_scheduler.py          # Aplicación Flask con scheduler integrado
+├── daily_scraper.py                 # Script independiente para scraping diario
+├── config_scraper.py                # Configurador de parámetros
+├── google_sheets_config.py          # Configuración de Google Sheets
+├── setup_task.bat                   # Script para configurar tarea de Windows
+├── requirements.txt                 # Dependencias del proyecto
+├── CONFIGURACION_GOOGLE_SHEETS.md   # Guía de configuración de Google Sheets
+├── templates/                       # Plantillas HTML
+├── resultados/                      # Carpeta donde se guardan los Excel locales
+├── logs/                           # Carpeta de logs
+├── credentials.json                 # Credenciales de Google API (crear este archivo)
+├── token.json                      # Token de autenticación (se crea automáticamente)
+└── README.md                       # Este archivo
 ```
+
+## ☁️ Configuración de Google Sheets
+
+**¡NUEVO!** Ahora puedes guardar todos los resultados directamente en Google Drive.
+
+👉 **[Ver guía completa de configuración](CONFIGURACION_GOOGLE_SHEETS.md)**
+
+**Beneficios:**
+- ✅ No ocupa espacio en tu computadora
+- ✅ Acceso desde cualquier dispositivo
+- ✅ Compartición fácil con otros
+- ✅ Backups automáticos en la nube
+- ✅ Edición colaborativa
 
 ## 🚀 Opciones de Implementación
 
@@ -27,6 +54,7 @@ La aplicación Flask corre continuamente y ejecuta el scraping automáticamente.
 **Características:**
 - ✅ Scheduler integrado con APScheduler
 - ✅ Se ejecuta diariamente a las 9:00 AM
+- ✅ Guarda en Google Sheets y Excel local
 - ✅ API REST para control manual
 - ✅ Interfaz web disponible
 - ✅ Configuración modificable en tiempo real
@@ -38,7 +66,7 @@ python application_scheduler.py
 
 **Endpoints disponibles:**
 - `GET /` - Interfaz web
-- `GET /scrape_and_save` - Scraping manual y guardar en Excel
+- `GET /scrape_and_save` - Scraping manual y guardar
 - `GET /config` - Ver configuración actual
 - `POST /config` - Modificar configuración
 - `GET /status` - Estado del scheduler
@@ -48,6 +76,12 @@ python application_scheduler.py
 Script que se ejecuta una vez y termina, ideal para el Programador de tareas de Windows.
 
 **Características:**
+- ✅ Ejecución independiente
+- ✅ Guarda en Google Sheets y Excel local
+- ✅ Logs detallados
+- ✅ Reporte de estadísticas
+- ✅ Archivo histórico acumulativo
+- ✅ Configuración mediante archivo JSON
 - ✅ Ejecución independiente
 - ✅ Logs detallados
 - ✅ Reporte de estadísticas

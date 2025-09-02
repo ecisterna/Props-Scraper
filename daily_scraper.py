@@ -1,6 +1,7 @@
 """
 Script independiente para scraping diario de propiedades
 Se puede ejecutar desde el Programador de tareas de Windows
+Guarda los resultados en Google Sheets (Excel de Drive)
 """
 
 from bs4 import BeautifulSoup
@@ -10,6 +11,15 @@ from datetime import datetime
 import os
 import logging
 import sys
+
+# Importa el manager de Google Sheets
+try:
+    from google_sheets_config import GoogleSheetsManager
+    GOOGLE_SHEETS_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Google Sheets no disponible: {e}")
+    print("📝 Los datos se guardarán solo en Excel local")
+    GOOGLE_SHEETS_AVAILABLE = False
 
 # Configuración de logging
 def setup_logging():
@@ -117,11 +127,11 @@ def scrape_props(config):
     logger.info(f"Scraping completado. Total de propiedades: {total_props}")
     return data
 
-def save_to_excel(data, config):
-    """Guarda los datos en un archivo Excel"""
+def save_to_excel_and_sheets(data, config):
+    """Guarda los datos en Excel local y Google Sheets"""
     if not data:
         logger.warning("No hay datos para guardar")
-        return None
+        return None, None
     
     # Crear directorio de resultados si no existe
     results_dir = 'resultados'
@@ -133,41 +143,82 @@ def save_to_excel(data, config):
     filename = f'scraping_{config["property_type"]}_{config["operation_type"]}_{timestamp}.xlsx'
     filepath = os.path.join(results_dir, filename)
     
+    excel_success = False
+    sheets_url = None
+    
     try:
         df = pd.DataFrame(data)
         
-        # Archivo principal con todos los datos
-        main_filepath = os.path.join(results_dir, 'scraping_historico.xlsx')
-        
-        # Guardar archivo del día
-        df.to_excel(filepath, index=False)
-        logger.info(f"Archivo diario guardado: {filepath}")
-        
-        # Agregar al archivo histórico
-        if os.path.exists(main_filepath):
-            # Leer archivo existente
-            try:
-                existing_df = pd.read_excel(main_filepath)
-                # Combinar con nuevos datos
-                combined_df = pd.concat([existing_df, df], ignore_index=True)
-                # Eliminar duplicados basados en el link (si los hay)
-                combined_df = combined_df.drop_duplicates(subset=['Link'], keep='last')
-                combined_df.to_excel(main_filepath, index=False)
-                logger.info(f"Datos agregados al archivo histórico: {main_filepath}")
-            except Exception as e:
-                logger.error(f"Error actualizando archivo histórico: {str(e)}")
-                # Si hay error, guardar como nuevo archivo
+        # 1. Guardar en Excel local (respaldo)
+        try:
+            # Archivo principal con todos los datos
+            main_filepath = os.path.join(results_dir, 'scraping_historico.xlsx')
+            
+            # Guardar archivo del día
+            df.to_excel(filepath, index=False)
+            logger.info(f"📁 Archivo diario guardado: {filepath}")
+            
+            # Agregar al archivo histórico
+            if os.path.exists(main_filepath):
+                # Leer archivo existente
+                try:
+                    existing_df = pd.read_excel(main_filepath)
+                    # Combinar con nuevos datos
+                    combined_df = pd.concat([existing_df, df], ignore_index=True)
+                    # Eliminar duplicados basados en el link (si los hay)
+                    combined_df = combined_df.drop_duplicates(subset=['Link'], keep='last')
+                    combined_df.to_excel(main_filepath, index=False)
+                    logger.info(f"📁 Datos agregados al archivo histórico: {main_filepath}")
+                except Exception as e:
+                    logger.error(f"❌ Error actualizando archivo histórico: {str(e)}")
+                    # Si hay error, guardar como nuevo archivo
+                    df.to_excel(main_filepath, index=False)
+            else:
+                # Crear nuevo archivo histórico
                 df.to_excel(main_filepath, index=False)
-        else:
-            # Crear nuevo archivo histórico
-            df.to_excel(main_filepath, index=False)
-            logger.info(f"Nuevo archivo histórico creado: {main_filepath}")
+                logger.info(f"📁 Nuevo archivo histórico creado: {main_filepath}")
+            
+            excel_success = True
+            
+        except Exception as e:
+            logger.error(f"❌ Error guardando archivo Excel local: {str(e)}")
         
-        return filepath
+        # 2. Guardar en Google Sheets
+        if GOOGLE_SHEETS_AVAILABLE:
+            try:
+                logger.info("☁️ Intentando guardar en Google Sheets...")
+                
+                # Crear manager de Google Sheets
+                sheets_manager = GoogleSheetsManager()
+                
+                # Guardar en Google Sheets
+                sheets_url = sheets_manager.save_properties_to_sheet(
+                    data, 
+                    f"Props Scraper - {config['property_type'].title()} {config['operation_type'].title()}"
+                )
+                
+                if sheets_url:
+                    logger.info(f"☁️ ¡Datos guardados en Google Sheets exitosamente!")
+                    logger.info(f"🔗 URL: {sheets_url}")
+                else:
+                    logger.warning("⚠️ No se pudo obtener la URL de Google Sheets")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error guardando en Google Sheets: {str(e)}")
+                logger.info("💾 Los datos están disponibles en el archivo Excel local como respaldo")
+        else:
+            logger.info("⚠️ Google Sheets no está disponible, solo se guardó en Excel local")
+        
+        return filepath if excel_success else None, sheets_url
     
     except Exception as e:
-        logger.error(f"Error guardando archivo Excel: {str(e)}")
-        return None
+        logger.error(f"❌ Error general en save_to_excel_and_sheets: {str(e)}")
+        return None, None
+
+def save_to_excel(data, config):
+    """Función legacy que mantiene compatibilidad"""
+    filepath, _ = save_to_excel_and_sheets(data, config)
+    return filepath
 
 def create_summary_report(data, config):
     """Crea un reporte resumen del scraping"""
@@ -229,24 +280,28 @@ def main():
         data = scrape_props(SCRAPING_CONFIG)
         
         if data:
-            # Guardar en Excel
-            filepath = save_to_excel(data, SCRAPING_CONFIG)
+            # Guardar en Excel y Google Sheets
+            filepath, sheets_url = save_to_excel_and_sheets(data, SCRAPING_CONFIG)
             
             # Crear reporte resumen
             create_summary_report(data, SCRAPING_CONFIG)
             
-            if filepath:
-                logger.info(f"Scraping exitoso. Archivo guardado: {filepath}")
+            if filepath or sheets_url:
+                logger.info("🎉 ¡Scraping exitoso!")
+                if filepath:
+                    logger.info(f"📁 Archivo local: {filepath}")
+                if sheets_url:
+                    logger.info(f"☁️ Google Sheets: {sheets_url}")
                 return True
             else:
-                logger.error("Error al guardar el archivo")
+                logger.error("❌ Error al guardar los datos")
                 return False
         else:
-            logger.warning("No se encontraron propiedades")
+            logger.warning("⚠️ No se encontraron propiedades")
             return False
     
     except Exception as e:
-        logger.error(f"Error general en el scraping: {str(e)}")
+        logger.error(f"❌ Error general en el scraping: {str(e)}")
         return False
     
     finally:

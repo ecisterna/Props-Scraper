@@ -7,6 +7,15 @@ from datetime import datetime
 import os
 import logging
 
+# Importa el manager de Google Sheets
+try:
+    from google_sheets_config import GoogleSheetsManager
+    GOOGLE_SHEETS_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Google Sheets no disponible: {e}")
+    print("📝 Los datos se guardarán solo en Excel local")
+    GOOGLE_SHEETS_AVAILABLE = False
+
 app = Flask(__name__)
 
 # Configuración de logging
@@ -72,11 +81,11 @@ def scrape_props(property_type, operation_type, location, price_range_from, pric
     
     return data
 
-def save_to_excel(data, filename=None):
-    """Guarda los datos en un archivo Excel"""
+def save_to_excel_and_sheets(data, filename=None, config=None):
+    """Guarda los datos en Excel local y Google Sheets"""
     if not data:
         logger.warning("No hay datos para guardar")
-        return
+        return None, None
     
     if not filename:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -88,45 +97,92 @@ def save_to_excel(data, filename=None):
         os.makedirs(results_dir)
     
     filepath = os.path.join(results_dir, filename)
+    excel_success = False
+    sheets_url = None
     
     try:
         df = pd.DataFrame(data)
         
-        # Si el archivo ya existe, agregar los datos como una nueva hoja
-        if os.path.exists(filepath):
-            with pd.ExcelWriter(filepath, mode='a', engine='openpyxl', if_sheet_exists='new') as writer:
-                sheet_name = f'Scraping_{datetime.now().strftime("%Y%m%d_%H%M")}'
-                df.to_excel(writer, sheet_name=sheet_name, index=False)
-        else:
-            df.to_excel(filepath, index=False)
+        # 1. Guardar en Excel local
+        try:
+            # Si el archivo ya existe, agregar los datos como una nueva hoja
+            if os.path.exists(filepath):
+                with pd.ExcelWriter(filepath, mode='a', engine='openpyxl', if_sheet_exists='new') as writer:
+                    sheet_name = f'Scraping_{datetime.now().strftime("%Y%m%d_%H%M")}'
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+            else:
+                df.to_excel(filepath, index=False)
+            
+            logger.info(f"📁 Datos guardados en Excel local: {filepath}")
+            excel_success = True
+            
+        except Exception as e:
+            logger.error(f"❌ Error guardando archivo Excel: {str(e)}")
         
-        logger.info(f"Datos guardados en: {filepath}")
-        return filepath
-    
+        # 2. Guardar en Google Sheets
+        if GOOGLE_SHEETS_AVAILABLE:
+            try:
+                logger.info("☁️ Intentando guardar en Google Sheets...")
+                
+                # Crear manager de Google Sheets
+                sheets_manager = GoogleSheetsManager()
+                
+                # Determinar nombre de la hoja
+                if config:
+                    sheet_name = f"Props Scraper - {config.get('property_type', 'Props').title()} {config.get('operation_type', '').title()}"
+                else:
+                    sheet_name = "Props Scraper - Resultados"
+                
+                # Guardar en Google Sheets
+                sheets_url = sheets_manager.save_properties_to_sheet(data, sheet_name)
+                
+                if sheets_url:
+                    logger.info(f"☁️ ¡Datos guardados en Google Sheets exitosamente!")
+                    logger.info(f"🔗 URL: {sheets_url}")
+                else:
+                    logger.warning("⚠️ No se pudo obtener la URL de Google Sheets")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error guardando en Google Sheets: {str(e)}")
+                logger.info("💾 Los datos están disponibles en el archivo Excel local como respaldo")
+        else:
+            logger.info("⚠️ Google Sheets no está disponible, solo se guardó en Excel local")
+        
+        return filepath if excel_success else None, sheets_url
+        
     except Exception as e:
-        logger.error(f"Error guardando archivo Excel: {str(e)}")
-        return None
+        logger.error(f"❌ Error general en save_to_excel_and_sheets: {str(e)}")
+        return None, None
+
+def save_to_excel(data, filename=None):
+    """Función legacy que mantiene compatibilidad"""
+    filepath, _ = save_to_excel_and_sheets(data, filename)
+    return filepath
 
 def scheduled_scraping():
     """Función que se ejecuta automáticamente cada día"""
-    logger.info("Iniciando scraping programado...")
+    logger.info("🤖 Iniciando scraping programado...")
     
     try:
         data = scrape_props(**DEFAULT_CONFIG)
         
         if data:
             filename = f'scraping_diario_{datetime.now().strftime("%Y%m%d")}.xlsx'
-            filepath = save_to_excel(data, filename)
+            filepath, sheets_url = save_to_excel_and_sheets(data, filename, DEFAULT_CONFIG)
             
-            if filepath:
-                logger.info(f"Scraping completado. {len(data)} propiedades encontradas y guardadas en {filepath}")
+            if filepath or sheets_url:
+                logger.info(f"🎉 Scraping completado. {len(data)} propiedades encontradas")
+                if filepath:
+                    logger.info(f"📁 Archivo local: {filepath}")
+                if sheets_url:
+                    logger.info(f"☁️ Google Sheets: {sheets_url}")
             else:
-                logger.error("Error al guardar los datos")
+                logger.error("❌ Error al guardar los datos")
         else:
-            logger.warning("No se encontraron propiedades en el scraping")
+            logger.warning("⚠️ No se encontraron propiedades en el scraping")
     
     except Exception as e:
-        logger.error(f"Error en el scraping programado: {str(e)}")
+        logger.error(f"❌ Error en el scraping programado: {str(e)}")
 
 @app.route('/scrape', methods=['GET'])
 def scrape():
