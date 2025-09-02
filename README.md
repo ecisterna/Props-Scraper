@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # # Props Scraper - Scraping Automático de Propiedades
 
 Este proyecto permite hacer scraping de propiedades de ArgentProp y programar ejecuciones automáticas diarias que guardan los resultados en archivos Excel.
