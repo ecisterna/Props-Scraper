@@ -1,0 +1,13 @@
+project:
+  name: "propiedades-etl-pipeline"
+  
+build:
+  exclude:
+    - "**/*.pyc"
+    - "**/__pycache__"
+    - ".git/*"
+    - ".vscode/*"
+    - "*.md"
+    - "test_*"
+    - "logs/*"
+    - "resultados/*"
